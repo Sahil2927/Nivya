@@ -23,12 +23,15 @@ npm run dev        # terminal 2 — Vite proxies /v1 → BFF
 
 Demo login: `POST /v1/auth/otp/verify` with `{ "phone": "9876543210", "otp": "123456" }`.
 
+When the BFF is running, the UI shows **Live API** in the home header and loads schemes, portfolio, and SIPs from `/v1`.
+
 ## Repository layout
 
 | Path | Description |
 |------|-------------|
 | `nivya-app.jsx` | Single-file React prototype (MF-only demo) |
 | `src/main.jsx` | Vite entry point |
+| `src/nivya-api.js` | BFF client (demo session, orders, NAV poll) |
 | `services/api/` | BFF — Fastify mock API (`docs/openapi.yaml`) |
 | `services/vendor-mf/` | `VendorMFAdapter` + mock exchange adapter |
 | `packages/compliance/` | ARN tagline, order compliance helpers |

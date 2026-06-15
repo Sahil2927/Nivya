@@ -320,19 +320,14 @@ function calcPortfolio(holdings, navs){
 
 /* ---------------- atoms ---------------- */
 function NivyaMark({ size=28 }){
-  const g = "nvgrad-" + size;
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" aria-label="Nivya">
-      <defs>
-        <linearGradient id={g} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#19C9AE" />
-          <stop offset="1" stopColor="#2456BE" />
-        </linearGradient>
-      </defs>
-      <polygon points="40,14 49,14 26,86 13,86" fill="#16213E" />
-      <polygon points="52,14 63,28 56,86 43,86" fill={`url(#${g})`} />
-      <polygon points="64,42 74,42 83,86 67,86" fill="#16213E" />
-    </svg>
+    <img
+      src="/nivya-logo.png"
+      width={size}
+      height={size}
+      alt="Nivya"
+      style={{ display: "block", objectFit: "contain" }}
+    />
   );
 }
 

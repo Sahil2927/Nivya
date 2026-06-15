@@ -1,12 +1,18 @@
 {
   "name": "nivya",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
+  "workspaces": [
+    "services/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "vite",
+    "dev:api": "npm run dev -w @nivya/api",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start:api": "npm run start -w @nivya/api"
   },
   "dependencies": {
     "lucide-react": "^0.525.0",

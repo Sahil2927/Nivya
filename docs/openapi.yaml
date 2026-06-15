@@ -1,0 +1,394 @@
+openapi: 3.1.0
+info:
+  title: Nivya BFF API
+  version: 0.1.0
+  description: |
+    Nivya mutual fund distribution platform — Backend-for-Frontend API.
+    Corporate MFD model (AMFI ARN). MF-only: purchase, SIP, redeem, switch, portfolio.
+servers:
+  - url: http://localhost:3001/v1
+    description: Local BFF
+  - url: /v1
+    description: Proxied via Vite dev server
+
+tags:
+  - name: Auth
+  - name: User
+  - name: KYC
+  - name: Schemes
+  - name: Portfolio
+  - name: Orders
+  - name: SIPs
+  - name: Compliance
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+    OtpSendRequest:
+      type: object
+      required: [phone]
+      properties:
+        phone: { type: string, example: "9876543210" }
+    OtpSendResponse:
+      type: object
+      properties:
+        requestId: { type: string }
+        expiresInSec: { type: integer }
+    OtpVerifyRequest:
+      type: object
+      required: [phone, otp]
+      properties:
+        phone: { type: string }
+        otp: { type: string, example: "123456" }
+    AuthTokens:
+      type: object
+      properties:
+        accessToken: { type: string }
+        expiresInSec: { type: integer }
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        phone: { type: string }
+        email: { type: string, nullable: true }
+        kycStatus: { type: string, enum: [pending, in_progress, registered, rejected] }
+        profile:
+          type: object
+          nullable: true
+          properties:
+            pan: { type: string }
+            name: { type: string }
+            dob: { type: string, format: date }
+    KycStatus:
+      type: object
+      properties:
+        status: { type: string }
+        kraStatus: { type: string, nullable: true }
+        ckycId: { type: string, nullable: true }
+    PanSubmitRequest:
+      type: object
+      required: [pan]
+      properties:
+        pan: { type: string, pattern: "^[A-Z]{5}[0-9]{4}[A-Z]$" }
+    Scheme:
+      type: object
+      properties:
+        schemeCode: { type: string }
+        name: { type: string }
+        amc: { type: string }
+        category: { type: string }
+        risk: { type: string }
+        nav: { type: number }
+        prevNav: { type: number }
+        minSip: { type: number }
+        expenseRatio: { type: number }
+        returns:
+          type: object
+          properties:
+            r1y: { type: number }
+            r3y: { type: number }
+            r5y: { type: number }
+    SchemeList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Scheme" } }
+        total: { type: integer }
+    Holding:
+      type: object
+      properties:
+        schemeCode: { type: string }
+        schemeName: { type: string }
+        folio: { type: string }
+        units: { type: number }
+        avgNav: { type: number }
+        currentNav: { type: number }
+        currentValue: { type: number }
+        invested: { type: number }
+        pnl: { type: number }
+        pnlPct: { type: number }
+    PortfolioSummary:
+      type: object
+      properties:
+        currentValue: { type: number }
+        invested: { type: number }
+        totalReturns: { type: number }
+        totalReturnsPct: { type: number }
+        dayChange: { type: number }
+        dayChangePct: { type: number }
+        holdings: { type: array, items: { $ref: "#/components/schemas/Holding" } }
+    Sip:
+      type: object
+      properties:
+        id: { type: string }
+        schemeCode: { type: string }
+        schemeName: { type: string }
+        amount: { type: number }
+        debitDay: { type: integer }
+        status: { type: string, enum: [active, paused, cancelled] }
+        nextDebit: { type: string, nullable: true }
+    OrderCreateRequest:
+      type: object
+      required: [type, schemeCode]
+      properties:
+        type: { type: string, enum: [purchase, redeem, switch] }
+        schemeCode: { type: string }
+        targetSchemeCode: { type: string, description: Required for switch }
+        amount: { type: number, description: Lumpsum purchase or redeem by amount }
+        units: { type: number, description: Redeem by units }
+        consentId: { type: string, description: SID consent reference }
+    Order:
+      type: object
+      properties:
+        id: { type: string }
+        type: { type: string }
+        schemeCode: { type: string }
+        amount: { type: number, nullable: true }
+        units: { type: number, nullable: true }
+        status: { type: string }
+        arn: { type: string }
+        euin: { type: string }
+        vendorRef: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+    SipCreateRequest:
+      type: object
+      required: [schemeCode, amount, debitDay]
+      properties:
+        schemeCode: { type: string }
+        amount: { type: number, minimum: 500 }
+        debitDay: { type: integer, minimum: 1, maximum: 28 }
+        consentId: { type: string }
+    ConsentRequest:
+      type: object
+      required: [schemeCode, sidVersion]
+      properties:
+        schemeCode: { type: string }
+        sidVersion: { type: string }
+    ComplianceDisclosures:
+      type: object
+      properties:
+        arn: { type: string }
+        tagline: { type: string }
+        riskDisclaimer: { type: string }
+        distributorLabel: { type: string }
+
+paths:
+  /auth/otp/send:
+    post:
+      tags: [Auth]
+      summary: Send login OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OtpSendRequest" }
+      responses:
+        "200":
+          description: OTP sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OtpSendResponse" }
+
+  /auth/otp/verify:
+    post:
+      tags: [Auth]
+      summary: Verify OTP and issue token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OtpVerifyRequest" }
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthTokens" }
+
+  /me:
+    get:
+      tags: [User]
+      security: [{ bearerAuth: [] }]
+      summary: Current user profile
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+
+  /kyc/status:
+    get:
+      tags: [KYC]
+      security: [{ bearerAuth: [] }]
+      summary: KYC status
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KycStatus" }
+
+  /kyc/pan:
+    post:
+      tags: [KYC]
+      security: [{ bearerAuth: [] }]
+      summary: Submit PAN for KRA lookup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PanSubmitRequest" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/KycStatus" }
+
+  /schemes:
+    get:
+      tags: [Schemes]
+      summary: List empanelled schemes
+      parameters:
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SchemeList" }
+
+  /schemes/{schemeCode}:
+    get:
+      tags: [Schemes]
+      summary: Scheme detail
+      parameters:
+        - name: schemeCode
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Scheme" }
+        "404":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /portfolio:
+    get:
+      tags: [Portfolio]
+      security: [{ bearerAuth: [] }]
+      summary: Portfolio summary and holdings
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PortfolioSummary" }
+
+  /sips:
+    get:
+      tags: [SIPs]
+      security: [{ bearerAuth: [] }]
+      summary: List user SIPs
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Sip" } }
+    post:
+      tags: [SIPs]
+      security: [{ bearerAuth: [] }]
+      summary: Register SIP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SipCreateRequest" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sip" }
+
+  /orders:
+    post:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      summary: Create order (purchase / redeem / switch)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrderCreateRequest" }
+      responses:
+        "201":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "403":
+          description: KYC incomplete or missing consent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /consents:
+    post:
+      tags: [Compliance]
+      security: [{ bearerAuth: [] }]
+      summary: Record SID/KIM consent before first investment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConsentRequest" }
+      responses:
+        "201":
+          description: Consent recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  schemeCode: { type: string }
+                  sidVersion: { type: string }
+
+  /compliance/disclosures:
+    get:
+      tags: [Compliance]
+      summary: ARN tagline and risk disclaimers for UI
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComplianceDisclosures" }
+
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  adapter: { type: string }

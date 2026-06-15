@@ -6,12 +6,22 @@ MF-only mutual fund distribution platform prototype (Corporate MFD model). Groww
 
 ## Run locally
 
+**UI only:**
+
 ```bash
 npm install
 npm run dev
 ```
 
-Open the URL shown in the terminal (typically `http://localhost:5173`).
+**UI + BFF API** (two terminals):
+
+```bash
+npm install
+npm run dev:api    # terminal 1 — http://localhost:3001/v1
+npm run dev        # terminal 2 — Vite proxies /v1 → BFF
+```
+
+Demo login: `POST /v1/auth/otp/verify` with `{ "phone": "9876543210", "otp": "123456" }`.
 
 ## Repository layout
 
@@ -19,12 +29,18 @@ Open the URL shown in the terminal (typically `http://localhost:5173`).
 |------|-------------|
 | `nivya-app.jsx` | Single-file React prototype (MF-only demo) |
 | `src/main.jsx` | Vite entry point |
-| `NIVYA-MF-PLATFORM-REPORT.md` | Strategic, regulatory & technical architecture report |
-| `HYBRID-E2E-PLAN.md` | Hybrid vendor + custom UX execution plan |
+| `services/api/` | BFF — Fastify mock API (`docs/openapi.yaml`) |
+| `services/vendor-mf/` | `VendorMFAdapter` + mock exchange adapter |
+| `packages/compliance/` | ARN tagline, order compliance helpers |
+| `infra/schema.sql` | PostgreSQL schema (v0.1) |
+| `docs/ADR-001-hybrid-architecture.md` | Hybrid architecture decision |
+| `docs/openapi.yaml` | BFF OpenAPI spec v0.1 |
+| `NIVYA-MF-PLATFORM-REPORT.md` | Strategic architecture report |
+| `HYBRID-E2E-PLAN.md` | Hybrid execution plan |
 
 ## Compliance note
 
-Demo build uses placeholder `NIVYA_ARN = "ARN-XXXXXX"`. Replace with your live AMFI ARN before any production use.
+Demo build uses placeholder `NIVYA_ARN=ARN-XXXXXX`. Set real ARN/EUIN in `services/api/.env` before production. Enable strict checks with `NIVYA_STRICT_COMPLIANCE=true`.
 
 ## License
 

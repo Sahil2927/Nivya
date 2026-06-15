@@ -1,0 +1,16 @@
+{
+  "name": "@nivya/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.0.1",
+    "@nivya/compliance": "*",
+    "@nivya/vendor-mf": "*",
+    "fastify": "^5.4.0"
+  }
+}

@@ -1,4 +1,15 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import {
+  bootstrapDemoSession,
+  fetchSchemes,
+  mapScheme,
+  mapHolding,
+  mapSip,
+  navsFromSchemes,
+  recordConsent,
+  submitOrder,
+  submitSip,
+} from "./src/nivya-api.js";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -260,8 +271,6 @@ const INITIAL_SIPS = [
   { id:"hdfc-ba", amount:2000, day:1, status:"Paused", nextDebit:"—" },
 ];
 
-const fundById = (id) => FUNDS.find((f) => f.id === id);
-
 const AV_COLORS = ["#2456BE","#0E9C8E","#7A5AF8","#E8943A","#D6409F","#16A35A","#0E7C86","#475467","#DC6803","#3E63DD"];
 
 /* ---------------- helpers ---------------- */
@@ -410,9 +419,9 @@ function FundRow({ fund, navs, onOpen, watched, onToggleWatch, showStar=false, s
 }
 
 /* ---------------- screens ---------------- */
-function HomeScreen({ navs, holdings, watch, sips, balVis, setBalVis, openFund, go, toggleWatch }){
+function HomeScreen({ navs, holdings, watch, sips, balVis, setBalVis, openFund, go, toggleWatch, fundById }){
   const portfolio = useMemo(()=>calcPortfolio(holdings, navs), [holdings, navs]);
-  const popular = ["quant-sc","mirae-lc","hdfc-elss","sbi-contra","nippon-sc"].map(fundById);
+  const popular = ["quant-sc","mirae-lc","hdfc-elss","sbi-contra","nippon-sc"].map(fundById).filter(Boolean);
   const dispHold = holdings.slice(0,3);
   const activeSips = sips.filter(s=>s.status==="Active").length;
 
@@ -522,12 +531,12 @@ function HomeScreen({ navs, holdings, watch, sips, balVis, setBalVis, openFund, 
   );
 }
 
-function Explore({ navs, watch, openFund, toggleWatch }){
+function Explore({ funds, navs, watch, openFund, toggleWatch }){
   const [cat, setCat] = useState("All");
   const [q, setQ] = useState("");
   const cats = ["All","High return","Large Cap","Small Cap","Hybrid","ELSS","Tax saving"];
   const list = useMemo(()=>{
-    let arr = [...FUNDS];
+    let arr = [...funds];
     if(q.trim()){
       const k = q.toLowerCase();
       arr = arr.filter(f=> f.s.toLowerCase().includes(k) || f.h.toLowerCase().includes(k) || f.cat.toLowerCase().includes(k));
@@ -536,7 +545,7 @@ function Explore({ navs, watch, openFund, toggleWatch }){
     else if(cat==="Tax saving" || cat==="ELSS") arr = arr.filter(f=>f.cat==="ELSS");
     else if(cat!=="All") arr = arr.filter(f=>f.cat===cat);
     return arr.sort((a,b)=>b.r3-a.r3);
-  }, [cat, q]);
+  }, [funds, cat, q]);
 
   return (
     <div className="scroll">
@@ -568,7 +577,7 @@ function Explore({ navs, watch, openFund, toggleWatch }){
   );
 }
 
-function Portfolio({ navs, holdings, openFund }){
+function Portfolio({ navs, holdings, openFund, fundById }){
   const data = useMemo(()=>{
     const pf = calcPortfolio(holdings, navs);
     const rows = holdings.map(h=>{
@@ -577,7 +586,7 @@ function Portfolio({ navs, holdings, openFund }){
       return { h, f, q, value, cost, pnl: value - cost };
     }).sort((a,b)=>b.value-a.value);
     return { ...pf, rows };
-  }, [holdings, navs]);
+  }, [holdings, navs, fundById]);
 
   const total = data.cur || 1;
 
@@ -647,7 +656,7 @@ function Portfolio({ navs, holdings, openFund }){
   );
 }
 
-function SipsScreen({ sips, openFund }){
+function SipsScreen({ sips, openFund, fundById }){
   const totalMonthly = sips.filter(s=>s.status==="Active").reduce((a,s)=>a+s.amount,0);
   return (
     <div className="scroll">
@@ -659,8 +668,9 @@ function SipsScreen({ sips, openFund }){
       </div>
       {sips.map(s=>{
         const f = fundById(s.id);
+        if (!f) return null;
         return (
-          <div className="sip-card" key={s.id+s.day} onClick={()=>openFund(f)} style={{cursor:"pointer"}}>
+          <div className="sip-card" key={s.sipKey || `${s.id}-${s.day}`} onClick={()=>openFund(f)} style={{cursor:"pointer"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
               <div style={{display:"flex",gap:12,alignItems:"center",flex:1,minWidth:0}}>
                 <FundAvatar h={f.h}/>
@@ -910,6 +920,8 @@ export default function App(){
   const [splash, setSplash] = useState(true);
   const [tab, setTab] = useState("home");
   const [balVis, setBalVis] = useState(true);
+  const [funds, setFunds] = useState(FUNDS);
+  const [apiConnected, setApiConnected] = useState(false);
   const [holdings, setHoldings] = useState(INITIAL_HOLDINGS);
   const [watch, setWatch] = useState(INITIAL_WATCH);
   const [sips, setSips] = useState(INITIAL_SIPS);
@@ -924,7 +936,39 @@ export default function App(){
     return n;
   });
 
+  const fundById = useCallback((id) => funds.find((f) => f.id === id), [funds]);
+
   useEffect(()=>{ const t=setTimeout(()=>setSplash(false), 1500); return ()=>clearTimeout(t); }, []);
+
+  useEffect(()=>{
+    let cancelled = false;
+    (async ()=>{
+      try {
+        const data = await bootstrapDemoSession();
+        if (cancelled) return;
+        setFunds(data.schemes.map(mapScheme));
+        setNavs(navsFromSchemes(data.schemes));
+        setHoldings(data.portfolio.holdings.map(mapHolding));
+        setSips(data.sips.map(mapSip));
+        setApiConnected(true);
+      } catch (err) {
+        console.warn("BFF unavailable — using local demo data", err);
+      }
+    })();
+    return ()=>{ cancelled = true; };
+  }, []);
+
+  useEffect(()=>{
+    if (!apiConnected) return;
+    const id = setInterval(async ()=>{
+      try {
+        const schemes = await fetchSchemes();
+        setFunds(schemes.map(mapScheme));
+        setNavs(navsFromSchemes(schemes));
+      } catch (_) { /* keep last good snapshot */ }
+    }, 5000);
+    return ()=>clearInterval(id);
+  }, [apiConnected]);
 
   useEffect(()=>{
     const l = document.createElement("link");
@@ -934,8 +978,9 @@ export default function App(){
     return ()=>{ try{ document.head.removeChild(l); }catch(e){} };
   }, []);
 
-  // simulated daily NAV drift (MF NAVs change once per day; subtle demo ticks)
+  // simulated NAV drift when BFF is offline
   useEffect(()=>{
+    if (apiConnected) return;
     const id = setInterval(()=>{
       setNavs(prev=>{
         const next = { ...prev };
@@ -949,7 +994,7 @@ export default function App(){
       });
     }, 4000);
     return ()=>clearInterval(id);
-  }, []);
+  }, [apiConnected]);
 
   const toast = (m)=>{
     setToastMsg(m);
@@ -957,11 +1002,7 @@ export default function App(){
     toastTimer.current = setTimeout(()=>setToastMsg(null), 2400);
   };
 
-  const toggleWatch = (id)=> setWatch(w=> w.includes(id) ? w.filter(x=>x!==id) : [id,...w]);
-  const go = (t)=>{ setOpenFundObj(null); setTab(t); };
-  const openFund = (f)=> setOpenFundObj(f);
-
-  const confirmOrder = (mode, { amount, units, sipDay })=>{
+  const applyLocalOrder = (mode, { amount, units, sipDay })=>{
     const fund = order.fund;
     if(mode==="LUMPSUM"){
       setHoldings(prev=>{
@@ -985,8 +1026,40 @@ export default function App(){
       });
       toast(`Redeem order placed · ${units.toFixed(2)} units of ${fund.h}`);
     }
+  };
+
+  const confirmOrder = async (mode, { amount, units, sipDay })=>{
+    const fund = order.fund;
+    if (apiConnected) {
+      try {
+        if (mode === "LUMPSUM" || mode === "REDEEM") {
+          await recordConsent(fund.id);
+          await submitOrder({
+            type: mode === "LUMPSUM" ? "purchase" : "redeem",
+            schemeCode: fund.id,
+            amount: mode === "LUMPSUM" ? amount : undefined,
+            units: mode === "REDEEM" ? units : undefined,
+          });
+          applyLocalOrder(mode, { amount, units, sipDay });
+        } else if (mode === "SIP") {
+          await recordConsent(fund.id);
+          const sip = await submitSip({ schemeCode: fund.id, amount, debitDay: sipDay });
+          setSips((prev) => [...prev, mapSip(sip)]);
+          toast(`SIP registered · ${inr0(amount)}/mo on ${sipDay}th`);
+        }
+      } catch (err) {
+        console.warn("Order API failed — falling back to local demo", err);
+        applyLocalOrder(mode, { amount, units, sipDay });
+      }
+    } else {
+      applyLocalOrder(mode, { amount, units, sipDay });
+    }
     setOrder(null);
   };
+
+  const toggleWatch = (id)=> setWatch(w=> w.includes(id) ? w.filter(x=>x!==id) : [id,...w]);
+  const go = (t)=>{ setOpenFundObj(null); setTab(t); };
+  const openFund = (f)=> setOpenFundObj(f);
 
   const curHolding = openFundObj ? holdings.find(h=>h.id===openFundObj.id) : null;
   const titles = { home:"", explore:"Explore funds", portfolio:"Portfolio", sips:"My SIPs", profile:"Profile" };
@@ -1012,7 +1085,7 @@ export default function App(){
                 {tab==="home"
                   ? <span className="wm">Niv<b>ya</b></span>
                   : <span className="wm" style={{fontSize:18}}>{titles[tab]}</span>}
-                {tab==="home" && <div className="arn-badge">AMFI-registered MF Distributor · {NIVYA_ARN}</div>}
+                {tab==="home" && <div className="arn-badge">AMFI-registered MF Distributor · {NIVYA_ARN}{apiConnected ? " · Live API" : ""}</div>}
               </div>
             </div>
             <div className="appbar-actions">
@@ -1022,10 +1095,10 @@ export default function App(){
           </div>
 
           {tab==="home" && <HomeScreen navs={navs} holdings={holdings} watch={watch} sips={sips}
-            balVis={balVis} setBalVis={setBalVis} openFund={openFund} go={go} toggleWatch={toggleWatch} />}
-          {tab==="explore" && <Explore navs={navs} watch={watch} openFund={openFund} toggleWatch={toggleWatch} />}
-          {tab==="portfolio" && <Portfolio navs={navs} holdings={holdings} openFund={openFund} />}
-          {tab==="sips" && <SipsScreen sips={sips} openFund={openFund} />}
+            balVis={balVis} setBalVis={setBalVis} openFund={openFund} go={go} toggleWatch={toggleWatch} fundById={fundById} />}
+          {tab==="explore" && <Explore funds={funds} navs={navs} watch={watch} openFund={openFund} toggleWatch={toggleWatch} />}
+          {tab==="portfolio" && <Portfolio navs={navs} holdings={holdings} openFund={openFund} fundById={fundById} />}
+          {tab==="sips" && <SipsScreen sips={sips} openFund={openFund} fundById={fundById} />}
           {tab==="profile" && <Profile holdings={holdings} navs={navs} toast={toast} />}
 
           <BottomNav tab={tab} go={go} />

@@ -3,7 +3,7 @@ package app.nivya.kyc;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"app.nivya.kyc", "app.nivya.common"})
 public class KycApplication {
     public static void main(String[] args) {
         SpringApplication.run(KycApplication.class, args);

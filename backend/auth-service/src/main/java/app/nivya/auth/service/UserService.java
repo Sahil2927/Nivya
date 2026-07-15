@@ -34,6 +34,14 @@ public class UserService {
         return userProfileRepository.save(newUser);
     }
 
+    @Transactional
+    public void updateKycStatus(UUID userId, KycStatus status) {
+        UserProfile user = userProfileRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        user.setKycStatus(status);
+        userProfileRepository.save(user);
+    }
+
     public MeResponse getUser(UUID userId) {
         UserProfile userProfile = userProfileRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));

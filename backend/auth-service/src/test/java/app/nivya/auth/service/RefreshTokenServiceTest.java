@@ -1,7 +1,7 @@
 package app.nivya.auth.service;
 
 import app.nivya.auth.BaseIntegrationTest;
-import app.nivya.auth.domain.KycStatus;
+import app.nivya.common.domain.KycStatus;
 import app.nivya.auth.domain.RefreshToken;
 import app.nivya.auth.domain.UserProfile;
 import app.nivya.auth.repository.RefreshTokenRepository;

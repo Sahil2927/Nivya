@@ -1,6 +1,6 @@
 package app.nivya.auth.service;
 
-import app.nivya.auth.domain.KycStatus;
+import app.nivya.common.domain.KycStatus;
 import app.nivya.auth.domain.UserProfile;
 import app.nivya.auth.dto.MeResponse;
 import app.nivya.auth.repository.UserProfileRepository;

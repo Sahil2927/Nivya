@@ -1,6 +1,6 @@
 package app.nivya.auth.dto;
 
-import app.nivya.auth.domain.KycStatus;
+import app.nivya.common.domain.KycStatus;
 
 import java.time.LocalDate;
 import java.util.UUID;

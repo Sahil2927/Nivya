@@ -2,10 +2,13 @@ package app.nivya.kyc.service.kyc.personalDetails;
 
 import java.util.UUID;
 import javax.security.auth.callback.Callback;
+
+import org.springframework.stereotype.Service;
 import app.nivya.kyc.domain.KycRecord;
 import app.nivya.kyc.repository.KycRecordRepository;
 import app.nivya.kyc.service.kyc.personalDetails.dto.PeronsalInformationPersistRequest;
 
+@Service
 public class PersonalDetailsKycService {
     private final KycRecordRepository kycRecordRepository;
     private KycRecord kycRecord;

@@ -8,5 +8,6 @@ public enum KycApplicationStatus {
     IPV_COMPLETE,
     SUBMITTED,
     VALIDATED,
-    REJECTED
+    REJECTED,
+    IN_PROGRESS
 }

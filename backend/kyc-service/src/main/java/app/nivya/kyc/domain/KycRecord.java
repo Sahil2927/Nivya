@@ -7,7 +7,7 @@ import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.time.Instant;
+import java.time.*;
 import java.util.UUID;
 
 @Getter
@@ -27,6 +27,30 @@ public class KycRecord {
     @Convert(converter = PanEncryptionConverter.class)
     @Column(name = "pan_encrypted")
     private String pan;
+
+    @Column(name = "first_name", length = 25)
+    private String firstName;
+
+    @Column(name = "middle_name", length = 25)
+    private String middleName;
+
+    @Column(name = "last_name", length = 25)
+    private String lastName;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(name = "address", columnDefinition = "TEXT")
+    private String address;
+
+    @Column(name = "city", columnDefinition = "TEXT")
+    private String city;
+
+    @Column(name = "state", columnDefinition = "TEXT")
+    private String state;
+
+    @Column(name = "gender", length = 10)
+    private String gender;
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)

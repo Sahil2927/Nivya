@@ -21,8 +21,12 @@ public class PanKycService {
 
     public void persistPanNumber(PanNumberPersistRequest panNumberPersistRequest) {
         UUID userId = UUID.fromString(panNumberPersistRequest.userId());
+        String panNumber = panNumberPersistRequest.pan().toUpperCase();
+
         KycRecord kycRecord = createIfNotExists(userId);
-        verifyKra(kycRecord, panNumberPersistRequest.pan());
+        updateKycRecord(kycRecord, panNumberPersistRequest);
+        kycRecordRepository.save(kycRecord);
+        verifyKra(kycRecord, panNumber);
     }
 
     private KycRecord createIfNotExists(UUID userId) {
@@ -46,5 +50,10 @@ public class PanKycService {
         }
 
         kycRecordRepository.save(kycRecord);
+    }
+
+    private void updateKycRecord(KycRecord kycRecord, PanNumberPersistRequest panNumberPersistRequest) {
+        kycRecord.setUserId(UUID.fromString(panNumberPersistRequest.userId()));
+        kycRecord.setPan(panNumberPersistRequest.pan());
     }
 }

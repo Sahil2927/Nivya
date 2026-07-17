@@ -5,10 +5,13 @@ import app.nivya.kyc.repository.KycRecordRepository;
 import app.nivya.kyc.service.kyc.pan.dto.PanNumberPersistRequest;
 import app.nivya.kyc.vendor.KraAdapter;
 import app.nivya.kyc.vendor.KraResult;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.UUID;
 
+@Service
 public class PanKycService {
 
     private final KycRecordRepository kycRecordRepository;
@@ -37,7 +40,8 @@ public class PanKycService {
         });
     }
 
-    private void verifyKra(KycRecord kycRecord, String panNumber) {
+    @Async
+    public void verifyKra(KycRecord kycRecord, String panNumber) {
         panNumber = panNumber.toUpperCase();
         KraResult kraResult = kraAdapter.lookup(panNumber);
 
